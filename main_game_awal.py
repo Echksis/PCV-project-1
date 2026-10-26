@@ -8,6 +8,20 @@ from PIL import Image, ImageSequence
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 ASSET = os.path.join(BASE, "ASSET")
+GAMEOVER_FOLDER = os.path.join(ASSET, "GameOver")
+GAMEOVER_FILE = os.path.join(GAMEOVER_FOLDER, "GameOver.png")
+
+GAMEOVER_MAX_SIZE = (1320, 380)
+
+GAMEOVER_PROMPT_Y = 930
+
+WIN_FOLDER = os.path.join(ASSET, "Ending win")
+WIN_FILE = os.path.join(WIN_FOLDER, "Win.png")
+WIN_MAX_SIZE = (900, 760)
+WIN_POPUP_X = 1250
+WIN_POPUP_Y = 300
+WIN_POPUP_SIZE = (280, 100)
+WIN_TRIGGER_DISTANCE = 420
 
 SCREEN_W, SCREEN_H = 1920, 1080
 FPS = 60
@@ -17,9 +31,7 @@ HSV_LOWER = np.array([35, 50, 40], dtype=np.uint8)
 HSV_UPPER = np.array([90, 255, 255], dtype=np.uint8)
 MIN_AREA = 1500
 
-# Zona kamera 5 kotak:
-# baris atas: kiri + tengah = lompat, kanan = interaksi (Z)
-# baris bawah: kiri = bergerak kiri, tengah = diam, kanan = bergerak kanan.
+
 X_LEFT = 1.0 / 3.0
 X_RIGHT = 2.0 / 3.0
 Y_SPLIT = 0.50
@@ -29,33 +41,46 @@ PLAYER_SIZE = (200, 200)
 PLAYER_START_X = 160
 PLAYER_START_Y = SCREEN_H * 0.53
 
-# ---------------- BOSS (hanya muncul di Background 2) ----------------
-# Sesuaikan nama file ini jika nama asset-mu berbeda.
+
 BOSS_FOLDER = os.path.join(ASSET, "MONSTER")
 BOSS_SEMI_FILE = os.path.join(BOSS_FOLDER, "semi buka.gif")
 BOSS_OPEN_FILE = os.path.join(BOSS_FOLDER, "mata buka.gif")
 BOSS_CLOSED_FILE = os.path.join(BOSS_FOLDER, "mata tutup.gif")
-BOSS_X = 1000             # posisi horizontal monster
-BOSS_Y = 0              # posisi vertikal monster
-BOSS_SIZE = (900, 720)    # ukuran monster (lebar, tinggi)
-BOSS_SEMI_SECONDS = 1.0   # fase semi terbuka
-BOSS_OPEN_SECONDS = 2.0   # mata terbuka: pemain tidak boleh bergerak
-BOSS_CLOSED_SECONDS = 2.0 # mata tertutup: pemain boleh bergerak
-BOSS_GIF_FPS = 12         # kecepatan frame GIF monster di game
-BOSS_HIT_COOLDOWN = 1.0   # jeda antarhit agar nyawa tidak berkurang tiap frame
+BOSS_X = 1000             
+BOSS_Y = 0              
+BOSS_SIZE = (900, 720)   
+BOSS_SEMI_SECONDS = 1.0   
+BOSS_OPEN_SECONDS = 2.0   
+BOSS_CLOSED_SECONDS = 2.0 
+BOSS_GIF_FPS = 12         
+BOSS_HIT_COOLDOWN = 1.0   
 
-# ---------------- NYAWA & ANIMASI KENA SERANGAN ----------------
+
 MAX_HEALTH = 3
 HEART_SIZE = (52, 52)
-HEART_X = 630             # posisi X hati, bisa diubah
+HEART_X = 630             
 HEART_Y = 100   
-HEART_SCALE = 0.55       # skala hati: 1.0 = ukuran asli
-HEART_GAP = 10           # jarak antarhati
+HEART_SCALE = 0.55       
+HEART_GAP = 10           
 HURT_DURATION = 0.45
-HURT_FRAME_INTERVAL = 0.035  # lebih kecil = animasi hurt lebih cepat
+HURT_FRAME_INTERVAL = 0.035  
 
 JUMP_DURATION = 0.85
 JUMP_HEIGHT = 200
+
+
+OBSTACLE_FOLDER = os.path.join(ASSET, "obstacle")
+BARREL_FILE = os.path.join(OBSTACLE_FOLDER, "barrel.gif")
+BAT_FILE = os.path.join(OBSTACLE_FOLDER, "kelelawar.gif")
+BARREL_Y = 675                 
+BAT_Y = 525                    
+BARREL_SIZE = (105, 105)
+BAT_SIZE = (115, 95)
+OBSTACLES_PER_TYPE = 5
+OBSTACLE_GAP_MIN, OBSTACLE_GAP_MAX = 1.8, 2.7  
+BARREL_SPEED_MIN, BARREL_SPEED_MAX = 430, 570
+BAT_SPEED_MIN, BAT_SPEED_MAX = 470, 620
+OBSTACLE_HIT_COOLDOWN = 1.0
 
 CAMERA_W, CAMERA_H = 400, 300
 CAMERA_MARGIN_RIGHT = 1320
@@ -79,13 +104,268 @@ ANIMATION_FILES = {
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
 
-# Overlay warna atmosfer untuk boss di Background 2 (tanpa tulisan).
-# Alpha dibuat berdenyut pelan supaya suasananya lebih dramatis.
+
 boss_color_overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
 pygame.display.set_caption("Menyelamatkan Adik - Prototype Full HD")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 30)
 small_font = pygame.font.SysFont("Arial", 22)
+
+
+
+OPENING_FOLDER = os.path.join(ASSET, "opening")
+DIALOGUE_TYPE_SPEED = 42  
+DIALOGUE_AUTO_NEXT = False  
+
+SCENE5_STOP_SECONDS = 4.2  
+SCENE5_DIALOGUE_START_DELAY = 3.0  
+SCENE5_KAKAK_DELAY = 0.8   
+
+
+def _draw_pixel_dialogue(surface, speaker, text, visible_chars):
+    """Kotak dialog putih pixel-art, nameplate, dan efek typewriter."""
+    box_w, box_h = 1510, 188
+    box_x = (SCREEN_W - box_w) // 2
+    box_y = SCREEN_H - box_h - 62
+    name_w, name_h = 230, 56
+    name_x, name_y = box_x + 42, box_y - name_h + 4
+
+    
+    pygame.draw.rect(surface, (0, 0, 0), (box_x + 13, box_y + 13, box_w, box_h))
+    pygame.draw.rect(surface, (0, 0, 0), (box_x + 7, box_y + 7, box_w, box_h))
+    pygame.draw.rect(surface, (0, 0, 0), (box_x, box_y, box_w, box_h))
+    pygame.draw.rect(surface, (255, 255, 255),
+                     (box_x + 8, box_y + 8, box_w - 16, box_h - 16))
+
+    
+    pygame.draw.rect(surface, (0, 0, 0), (name_x + 6, name_y + 6, name_w, name_h))
+    pygame.draw.rect(surface, (0, 0, 0), (name_x, name_y, name_w, name_h))
+    pygame.draw.rect(surface, (255, 255, 255),
+                     (name_x + 6, name_y + 6, name_w - 12, name_h - 12))
+
+    
+    name_font = pygame.font.SysFont("monospace", 29, bold=True)
+    dialogue_font = pygame.font.SysFont("monospace", 35, bold=True)
+    name_img = name_font.render(speaker, False, (0, 0, 0))
+    surface.blit(name_img, name_img.get_rect(center=(name_x + name_w // 2,
+                                                     name_y + name_h // 2)))
+
+    shown = text[:visible_chars]
+    
+    words = shown.split(" ")
+    lines, current = [], ""
+    max_width = box_w - 110
+    for word in words:
+        candidate = word if not current else current + " " + word
+        if dialogue_font.size(candidate)[0] <= max_width:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+
+    line_h = 46
+    total_h = len(lines) * line_h
+    start_y = box_y + max(16, (box_h - total_h) // 2)
+    for idx, line in enumerate(lines):
+        line_img = dialogue_font.render(line, False, (0, 0, 0))
+        surface.blit(line_img, line_img.get_rect(
+            center=(SCREEN_W // 2, start_y + idx * line_h + line_h // 2)
+        ))
+
+    
+    if visible_chars >= len(text) and (pygame.time.get_ticks() // 350) % 2 == 0:
+        px, py = box_x + box_w - 64, box_y + box_h - 42
+        pygame.draw.polygon(surface, (0, 0, 0),
+                            [(px, py), (px + 27, py), (px + 13, py + 18)])
+
+
+def _open_cutscene_video(filename):
+    path = os.path.join(OPENING_FOLDER, filename)
+    if not os.path.isfile(path):
+        print(f"[CUTSCENE] Video tidak ditemukan: {path}")
+        return None, None
+    cap_video = cv2.VideoCapture(path)
+    if not cap_video.isOpened():
+        print(f"[CUTSCENE] Video tidak dapat dibuka: {path}")
+        cap_video.release()
+        return None, None
+    fps_video = cap_video.get(cv2.CAP_PROP_FPS)
+    if not fps_video or fps_video < 1 or fps_video > 120:
+        fps_video = 30.0
+    return cap_video, fps_video
+
+
+def play_opening_cutscene(surface, game_clock):
+    """
+    Scene 1/3/5 diputar sekali. Bila Scene 1 atau 3 habis sebelum dialog selesai,
+    Scene 2/4 akan diloop sebagai latar. Scene 5 menahan frame terakhir.
+    SPACE: selesaikan teks yang sedang diketik, lalu SPACE lagi untuk dialog berikutnya.
+    """
+    scenes = [
+        {
+            "main": "scene1.mp4", "loop": "scene2.mp4",
+            "dialogues": [
+                ("Adik", "Kak! Aku sudah menemukan herbal yang kita cari!"),
+                ("Kakak", "Bagus. Ini cukup untuk obat Ibu."),
+                ("Adik", "Kalau begitu, setelah ini kita bisa langsung pulang, kan?"),
+                ("Kakak", "Iya. Ayo, hari sudah mulai gelap."),
+            ],
+            "loop_after_main": True,
+        },
+        {
+            "main": "scene3.mp4", "loop": "scene4.mp4",
+            "dialogues": [
+                ("Adik", "Kak... itu kerajaan kita, kan?"),
+                ("Kakak", "Apa yang terjadi di sana...?"),
+                ("Adik", "Kenapa ada api di mana-mana? Apa semua orang baik-baik saja?"),
+                ("Kakak", "Aku tidak tahu. Kita harus segera ke sana!"),
+            ],
+            "loop_after_main": True,
+        },
+        {
+            "main": "scene5.mp4", "loop": None,
+            "dialogues": [
+                ("Adik", "KAKAAAK!! TOLONG AKU!!"),
+                ("Kakak", "ADIK!! PEGANG TANGANKU!!"),
+                ("Adik", "KAKAAAK!!"),
+                ("Kakak", "TIDAAAK!!"),
+            ],
+            "loop_after_main": False,
+        },
+    ]
+
+    for scene_index, scene in enumerate(scenes):
+        if not os.path.isfile(os.path.join(OPENING_FOLDER, scene["main"])):
+            print("[CUTSCENE] Folder/video opening tidak lengkap. Cutscene dilewati.")
+            return
+
+        main_cap, main_fps = _open_cutscene_video(scene["main"])
+        loop_cap, loop_fps = (None, 30.0)
+        if scene["loop"]:
+            loop_cap, loop_fps = _open_cutscene_video(scene["loop"])
+
+        current_cap = main_cap
+        current_fps = main_fps or 30.0
+        main_finished = False
+        loop_started = False
+        last_frame = None
+        frame_elapsed = 0.0
+        dialogue_index = 0
+        char_count = 0.0
+        line_complete = False
+        scene_done = False
+        scene_start_ticks = pygame.time.get_ticks()
+        scene5_kakak_delay_until = None
+        scene5_auto_advance_at = None
+
+        while not scene_done:
+            dt = min(game_clock.tick(FPS) / 1000.0, 0.05)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    if main_cap: main_cap.release()
+                    if loop_cap: loop_cap.release()
+                    pygame.quit()
+                    raise SystemExit
+                if event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_ESCAPE, pygame.K_q):
+                        if main_cap: main_cap.release()
+                        if loop_cap: loop_cap.release()
+                        return
+                    if event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_z):
+                        dialogue = scene["dialogues"][dialogue_index][1]
+                        if char_count < len(dialogue):
+                            char_count = float(len(dialogue))  
+                            if scene_index == 2 and dialogue_index == 0:
+                                scene5_auto_advance_at = pygame.time.get_ticks() + int(SCENE5_KAKAK_DELAY * 1000)
+                        else:
+                            
+                            if not (scene_index == 2 and dialogue_index == 0):
+                                dialogue_index += 1
+                                if dialogue_index >= len(scene["dialogues"]):
+                                    scene_done = True
+                                else:
+                                    char_count = 0.0
+
+            
+            frame_elapsed += dt
+            frame_interval = 1.0 / max(1.0, current_fps)
+            
+            if scene_index == 2 and current_cap is main_cap and main_cap is not None:
+                current_pos_ms = main_cap.get(cv2.CAP_PROP_POS_MSEC)
+                if current_pos_ms >= SCENE5_STOP_SECONDS * 1000:
+                    current_cap = None  
+            if frame_elapsed >= frame_interval and current_cap is not None:
+                frame_elapsed %= frame_interval
+                ok, frame = current_cap.read()
+                if ok:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = cv2.resize(frame, (SCREEN_W, SCREEN_H), interpolation=cv2.INTER_AREA)
+                    last_frame = pygame.surfarray.make_surface(np.swapaxes(frame, 0, 1))
+                else:
+                    if current_cap is main_cap and not main_finished:
+                        main_finished = True
+                        if scene["loop_after_main"] and loop_cap is not None:
+                            current_cap = loop_cap
+                            current_fps = loop_fps
+                            loop_started = True
+                        else:
+                            
+                            current_cap = None
+                    elif current_cap is loop_cap and loop_cap is not None:
+                        loop_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+            if last_frame is not None:
+                surface.blit(last_frame, (0, 0))
+            else:
+                surface.fill((0, 0, 0))
+
+            if dialogue_index < len(scene["dialogues"]):
+                
+                if (scene_index == 2 and dialogue_index == 0
+                        and char_count >= len(scene["dialogues"][0][1])
+                        and scene5_auto_advance_at is None):
+                    scene5_auto_advance_at = pygame.time.get_ticks() + int(SCENE5_KAKAK_DELAY * 1000)
+
+                if (scene_index == 2 and dialogue_index == 0
+                        and scene5_auto_advance_at is not None
+                        and pygame.time.get_ticks() >= scene5_auto_advance_at):
+                    dialogue_index = 1
+                    char_count = 0.0
+                    scene5_kakak_delay_until = None
+
+                scene5_waiting_to_start = (
+                    scene_index == 2
+                    and (pygame.time.get_ticks() - scene_start_ticks) < int(SCENE5_DIALOGUE_START_DELAY * 1000)
+                )
+                if not scene5_waiting_to_start:
+                    speaker, dialogue = scene["dialogues"][dialogue_index]
+                    char_count = min(float(len(dialogue)), char_count + DIALOGUE_TYPE_SPEED * dt)
+                    _draw_pixel_dialogue(surface, speaker, dialogue, int(char_count))
+
+            pygame.display.flip()
+
+        if main_cap:
+            main_cap.release()
+        if loop_cap:
+            loop_cap.release()
+
+    
+    start_ticks = pygame.time.get_ticks()
+    title_font = pygame.font.SysFont("monospace", 76, bold=True)
+    while pygame.time.get_ticks() - start_ticks < 2200:
+        game_clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                raise SystemExit
+        surface.fill((8, 6, 16))
+        title = title_font.render("I WILL FIND YOU", False, (245, 235, 220))
+        surface.blit(title, title.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
+        pygame.display.flip()
+
 
 
 def load_background(path):
@@ -117,14 +397,14 @@ def load_gif_frames(path, size):
             break
 
         h, w = bgr.shape[:2]
-        # Putih / hampir putih.
+        
         white = (
             (bgr[:, :, 0] >= 220) &
             (bgr[:, :, 1] >= 220) &
             (bgr[:, :, 2] >= 220)
         ).astype(np.uint8)
 
-        # Hapus hanya komponen putih yang tersambung ke tepi frame.
+        
         num_labels, labels = cv2.connectedComponents(white, connectivity=8)
         edge_labels = set()
         edge_labels.update(np.unique(labels[0, :]).tolist())
@@ -155,8 +435,32 @@ def load_gif_frames(path, size):
     return frames
 
 
-# ---------------- LOAD ASSETS ----------------
+
 backgrounds = [load_background(path) for path in BG_FILES]
+if os.path.isfile(GAMEOVER_FILE):
+    gameover_image = pygame.image.load(GAMEOVER_FILE).convert_alpha()
+    gw, gh = gameover_image.get_size()
+    scale = min(GAMEOVER_MAX_SIZE[0] / gw, GAMEOVER_MAX_SIZE[1] / gh, 1.0)
+    gameover_image = pygame.transform.smoothscale(
+        gameover_image, (max(1, int(gw * scale)), max(1, int(gh * scale)))
+    )
+else:
+    gameover_image = None
+    print(f"PERINGATAN: gambar GameOver tidak ditemukan: {GAMEOVER_FILE}")
+win_image = None
+if os.path.isfile(WIN_FILE):
+    win_image = pygame.image.load(WIN_FILE).convert_alpha()
+    ww, wh = win_image.get_size()
+    win_scale = min(WIN_MAX_SIZE[0] / ww, WIN_MAX_SIZE[1] / wh, 1.0)
+    win_image = pygame.transform.smoothscale(
+        win_image, (max(1, int(ww * win_scale)), max(1, int(wh * win_scale)))
+    )
+else:
+    print(f"PERINGATAN: gambar ending win tidak ditemukan: {WIN_FILE}")
+
+win_popup_font = pygame.font.SysFont("Arial", 22, bold=True)
+win_key_font = pygame.font.SysFont("Arial", 30, bold=True)
+
 animations = {
     name: load_gif_frames(path, PLAYER_SIZE)
     for name, path in ANIMATION_FILES.items()
@@ -190,8 +494,7 @@ def load_transparent_gif_frames(path, size):
             rgb = arr[:, :, :3]
             alpha = arr[:, :, 3]
 
-            # Kandidat piksel hitam; hanya komponen yang tersambung ke tepi
-            # yang dihapus supaya detail gelap di tubuh monster tetap terjaga.
+            
             black = (
                 (rgb[:, :, 0] <= 22) &
                 (rgb[:, :, 1] <= 22) &
@@ -221,14 +524,30 @@ def load_transparent_gif_frames(path, size):
     return frames
 
 
-# Tiga GIF monster, disimpan di ASSET/MONSTER.
+def load_obstacle_gif(path, size):
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Obstacle tidak ditemukan: {path}")
+    frames = []
+    with Image.open(path) as gif:
+        for frame in ImageSequence.Iterator(gif):
+            rgba = frame.convert("RGBA").resize(size, Image.Resampling.LANCZOS)
+            frames.append(pygame.image.frombytes(
+                rgba.tobytes(), rgba.size, "RGBA"
+            ).convert_alpha())
+    return frames
+
+
+
 boss_animations = {
     "SEMI": load_transparent_gif_frames(BOSS_SEMI_FILE, BOSS_SIZE),
     "OPEN": load_transparent_gif_frames(BOSS_OPEN_FILE, BOSS_SIZE),
     "CLOSED": load_transparent_gif_frames(BOSS_CLOSED_FILE, BOSS_SIZE),
 }
 
-# Cari gambar hati berdasarkan nama file, termasuk jika ekstensi huruf besar.
+barrel_frames = load_obstacle_gif(BARREL_FILE, BARREL_SIZE)
+bat_frames = load_obstacle_gif(BAT_FILE, BAT_SIZE)
+
+
 def find_asset_by_name(root, target_name):
     target = target_name.lower()
     for folder, _, filenames in os.walk(root):
@@ -254,13 +573,13 @@ heart_full = scale_heart(heart_full)
 heart_empty = scale_heart(heart_empty)
 HEART_W = heart_full.get_width() if heart_full else 52
 
-# Animasi hurt opsional: dicari di ASSET/kakak/hurt.gif lalu di folder utama.
+
 hurt_path = os.path.join(ASSET, "kakak", "hurt.gif")
 if not os.path.isfile(hurt_path):
     hurt_path = os.path.join(BASE, "hurt.gif")
 hurt_frames = load_gif_frames(hurt_path, PLAYER_SIZE) if os.path.isfile(hurt_path) else []
 
-# ---------------- WEBCAM ----------------
+
 cap = cv2.VideoCapture(CAMERA_INDEX)
 camera_available = cap.isOpened()
 if camera_available:
@@ -314,10 +633,7 @@ def read_hand_direction():
             nx, ny = cx / 640.0, cy / 480.0
             hand_detected = True
 
-            # Lima zona:
-            # ATAS-KIRI dan ATAS-TENGAH = lompat
-            # ATAS-KANAN = interaksi (Z)
-            # BAWAH-KIRI = kiri, BAWAH-TENGAH = diam, BAWAH-KANAN = kanan
+            
             if ny < Y_SPLIT:
                 if nx > X_RIGHT:
                     camera_direction = "INTERAKSI"
@@ -333,17 +649,17 @@ def read_hand_direction():
             cv2.drawContours(frame, [contour], -1, (0, 255, 0), 2)
             cv2.circle(frame, (cx, cy), 7, (0, 0, 255), -1)
 
-    # Garis pembagi zona: tiga kolom dan dua baris.
+    
     x_left_px = int(X_LEFT * 640)
     x_right_px = int(X_RIGHT * 640)
     y_split_px = int(Y_SPLIT * 480)
 
-    # Atas kiri+tengah digabung menjadi satu kotak besar untuk lompat.
+    
     cv2.line(frame, (x_right_px, 0), (x_right_px, 480), (255, 255, 0), 2)
     cv2.line(frame, (x_left_px, y_split_px), (x_left_px, 480), (255, 255, 0), 2)
     cv2.line(frame, (0, y_split_px), (640, y_split_px), (255, 255, 0), 2)
 
-    # Label visual untuk membantu kalibrasi posisi sarung tangan.
+    
     cv2.putText(frame, "LOMPAT", (245, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
     cv2.putText(frame, "Z", (510, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 0), 2)
     cv2.putText(frame, "KIRI", (45, 390), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
@@ -363,7 +679,7 @@ def read_hand_direction():
     return camera_direction
 
 
-# ---------------- GAME STATE ----------------
+
 player_x = float(PLAYER_START_X)
 player_y = float(PLAYER_START_Y)
 jump_origin_y = player_y
@@ -388,6 +704,11 @@ boss_state_timer = BOSS_SEMI_SECONDS
 boss_frame_index = 0
 boss_frame_timer = 0.0
 game_over = False
+obstacles = []
+obstacle_spawn_timer = 1.0
+obstacle_spawn_kind = "BARREL"
+spawned_counts = {"BARREL": 0, "BAT": 0}
+obstacle_hit_cooldown = 0.0
 
 
 def set_animation(name):
@@ -420,6 +741,44 @@ def draw_health():
             )
 
 
+def reset_game():
+    """Reset semua state permainan agar tombol R benar-benar mengulang level 1."""
+    global player_x, player_y, jump_origin_y, facing
+    global current_animation, frame_index, animation_timer, jump_timer, was_in_jump_zone
+    global level, message, message_timer, health, hurt_timer, hurt_animation_timer, hurt_frame_index
+    global hit_cooldown, boss_phase, boss_state_timer, boss_frame_index, boss_frame_timer, game_over
+    global obstacles, obstacle_spawn_timer, obstacle_spawn_kind, spawned_counts, obstacle_hit_cooldown
+
+    player_x = float(PLAYER_START_X)
+    player_y = float(PLAYER_START_Y)
+    jump_origin_y = player_y
+    facing = "RIGHT"
+    current_animation = "RUN_RIGHT"
+    frame_index = 0
+    animation_timer = 0.0
+    jump_timer = 0.0
+    was_in_jump_zone = False
+
+    level = 0
+    message = "Level 1: cari jalan melewati rintangan"
+    message_timer = 3.0
+    health = MAX_HEALTH
+    hurt_timer = 0.0
+    hurt_animation_timer = 0.0
+    hurt_frame_index = 0
+    hit_cooldown = 0.0
+    boss_phase = "SEMI"
+    boss_state_timer = BOSS_SEMI_SECONDS
+    boss_frame_index = 0
+    boss_frame_timer = 0.0
+    game_over = False
+    obstacles = []
+    obstacle_spawn_timer = 1.0
+    obstacle_spawn_kind = "BARREL"
+    spawned_counts = {"BARREL": 0, "BAT": 0}
+    obstacle_hit_cooldown = 0.0
+
+
 def main():
     global player_x, player_y, jump_origin_y, facing
     global current_animation, frame_index, animation_timer, jump_timer
@@ -427,7 +786,15 @@ def main():
     global health, hurt_timer, hurt_animation_timer, hurt_frame_index
     global hit_cooldown, boss_phase, boss_state_timer
     global boss_frame_index, boss_frame_timer, game_over
+    global obstacles, obstacle_spawn_timer, obstacle_spawn_kind
+    global spawned_counts, obstacle_hit_cooldown
+    global win_ending, win_popup_active
 
+    
+    play_opening_cutscene(screen, clock)
+
+    win_ending = False
+    win_popup_active = False
     running = True
 
     while running:
@@ -437,24 +804,24 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key in (pygame.K_ESCAPE, pygame.K_q):
+                if game_over and event.key == pygame.K_r:
+                    reset_game()
+                elif event.key in (pygame.K_ESCAPE, pygame.K_q):
                     running = False
 
         keys = pygame.key.get_pressed()
 
-        # Keyboard overrides webcam for testing.
+        
         if keys[pygame.K_LEFT]:
             direction = "KIRI"
         elif keys[pygame.K_RIGHT]:
             direction = "KANAN"
         elif keys[pygame.K_UP]:
             direction = "ATAS"
-        elif keys[pygame.K_z]:
-            direction = "INTERAKSI"
         else:
             direction = read_hand_direction()
 
-        # Siklus boss hanya aktif pada Background 2: semi (1 dtk) -> buka (2 dtk) -> tutup (2 dtk).
+        
         if level == 1:
             boss_state_timer -= dt
             boss_frame_timer += dt
@@ -477,13 +844,16 @@ def main():
 
         boss_eye_open = (level == 1 and boss_phase in ("SEMI", "OPEN"))
 
-        # Pemain tetap bebas bergerak pada semua fase boss.
-        # Jika game over, permainan berakhir dan karakter berhenti.
-        if game_over:
+        
+        # Ending diaktifkan oleh zona Z pada webcam (kanan atas), bukan keyboard.
+        if win_popup_active and direction == "INTERAKSI" and not game_over:
+            win_ending = True
+
+        if game_over or win_ending:
             direction = "TENGAH"
 
         dx = 0.0
-        if not game_over:
+        if not game_over and not win_ending:
             if direction == "KIRI":
                 dx = -MOVE_SPEED * dt
                 facing = "LEFT"
@@ -523,20 +893,28 @@ def main():
             animation_timer = 0.0
             frames = animations[current_animation]
             if current_animation.startswith("JUMP"):
-                # Animasi lompat maju sampai frame terakhir.
+                
                 frame_index = min(frame_index + 1, len(frames) - 1)
             else:
-                # Run dan idle sama-sama dianimasikan berulang.
+                
                 frame_index = (frame_index + 1) % len(frames)
 
-        # Transisi level sementara melalui tepi layar.
+        
         if player_x > SCREEN_W - PLAYER_SIZE[0] - 5 and level < 2:
             level += 1
+            obstacles.clear()
+            spawned_counts = {"BARREL": 0, "BAT": 0}
+            obstacle_spawn_timer = 1.0
+            obstacle_spawn_kind = "BARREL"
             player_x = 40
             message = f"Level {level + 1}"
             message_timer = 2.0
         elif player_x < 5 and level > 0:
             level -= 1
+            obstacles.clear()
+            spawned_counts = {"BARREL": 0, "BAT": 0}
+            obstacle_spawn_timer = 1.0
+            obstacle_spawn_kind = "BARREL"
             player_x = SCREEN_W - PLAYER_SIZE[0] - 40
             message = f"Level {level + 1}"
             message_timer = 2.0
@@ -554,12 +932,64 @@ def main():
                 hurt_animation_timer = 0.0
                 hurt_frame_index = (hurt_frame_index + 1) % len(hurt_frames)
 
-        # Ketika mata boss terbuka, zona TENGAH layar adalah zona aman.
-        # Pemain tetap bisa bergerak; jika posisi karakter keluar dari zona aman,
-        # nyawa berkurang satu kali setiap cooldown.
-        # Tidak ada zona aman. Saat mata boss terbuka, pemain boleh bergerak,
-        # tetapi setiap input gerak akan mengurangi satu nyawa sesuai cooldown.
-        # Saat idle/TENGAH, nyawa tidak berkurang.
+        
+        obstacle_hit_cooldown = max(0.0, obstacle_hit_cooldown - dt)
+        if level == 0 and not game_over:
+            obstacle_spawn_timer -= dt
+            if obstacle_spawn_timer <= 0:
+                kind = obstacle_spawn_kind
+                if spawned_counts[kind] < OBSTACLES_PER_TYPE:
+                    if kind == "BARREL":
+                        y = BARREL_Y
+                        speed = np.random.uniform(BARREL_SPEED_MIN, BARREL_SPEED_MAX)
+                        frames = barrel_frames
+                    else:
+                        y = BAT_Y
+                        speed = np.random.uniform(BAT_SPEED_MIN, BAT_SPEED_MAX)
+                        frames = bat_frames
+                    obstacles.append({"kind": kind, "x": float(SCREEN_W + 20),
+                                      "y": float(y), "speed": float(speed),
+                                      "frames": frames, "frame": 0, "anim_t": 0.0})
+                    spawned_counts[kind] += 1
+                obstacle_spawn_kind = "BAT" if kind == "BARREL" else "BARREL"
+                if all(spawned_counts[k] >= OBSTACLES_PER_TYPE for k in spawned_counts):
+                    obstacle_spawn_timer = 999999
+                else:
+                    obstacle_spawn_timer = np.random.uniform(OBSTACLE_GAP_MIN, OBSTACLE_GAP_MAX)
+
+            
+            player_rect = pygame.Rect(int(player_x + PLAYER_SIZE[0] * 0.22),
+                                      int(player_y + PLAYER_SIZE[1] * 0.18),
+                                      int(PLAYER_SIZE[0] * 0.56),
+                                      int(PLAYER_SIZE[1] * 0.64))
+            for obs in obstacles:
+                obs["x"] -= obs["speed"] * dt
+                obs["anim_t"] += dt
+                if obs["anim_t"] >= 0.16:
+                    obs["anim_t"] = 0.0
+                    obs["frame"] = (obs["frame"] + 1) % len(obs["frames"])
+                spr = obs["frames"][obs["frame"]]
+                ix, iy = int(spr.get_width() * 0.18), int(spr.get_height() * 0.18)
+                rect = pygame.Rect(int(obs["x"] + ix), int(obs["y"] + iy),
+                                   max(1, spr.get_width() - 2 * ix),
+                                   max(1, spr.get_height() - 2 * iy))
+                if player_rect.colliderect(rect) and obstacle_hit_cooldown <= 0:
+                    health = max(0, health - 1)
+                    obstacle_hit_cooldown = OBSTACLE_HIT_COOLDOWN
+                    hurt_timer, hurt_animation_timer, hurt_frame_index = HURT_DURATION, 0.0, 0
+                    message = "Terkena obstacle! -1 nyawa"
+                    message_timer = 1.5
+                    if health <= 0:
+                        game_over = True
+                        message = "GAME OVER - nyawa habis"
+            obstacles = [o for o in obstacles if o["x"] + o["frames"][0].get_width() > 0]
+        else:
+            obstacles.clear()
+            obstacle_spawn_timer = 1.0
+            spawned_counts = {"BARREL": 0, "BAT": 0}
+            obstacle_spawn_kind = "BARREL"
+
+        
         if (
             level == 1
             and boss_phase == "OPEN"
@@ -582,7 +1012,12 @@ def main():
 
         screen.blit(backgrounds[level], (0, 0))
 
-        # Monster hanya digambar di Background 2, memakai GIF sesuai fase.
+        
+        if level == 0:
+            for obs in obstacles:
+                screen.blit(obs["frames"][obs["frame"]], (int(obs["x"]), int(obs["y"])))
+
+        
         if level == 1:
             boss_frames = boss_animations[boss_phase]
             screen.blit(boss_frames[boss_frame_index], (BOSS_X, BOSS_Y))
@@ -595,11 +1030,42 @@ def main():
                 (int(player_x), int(player_y))
             )
 
-        # Nuansa RED LIGHT saat mata terbuka, GREEN LIGHT saat mata tertutup.
-        # Efek hanya menimpa area gameplay; tulisan HUD dan ikon nyawa tetap jelas.
+        
+        win_popup_cx = WIN_POPUP_X + WIN_POPUP_SIZE[0] // 2
+        win_popup_cy = WIN_POPUP_Y + WIN_POPUP_SIZE[1] // 2
+        player_cx = player_x + PLAYER_SIZE[0] // 2
+        player_cy = player_y + PLAYER_SIZE[1] // 2
+        win_distance = math.hypot(player_cx - win_popup_cx, player_cy - win_popup_cy)
+        win_popup_active = (
+            level == 2 and not game_over and not win_ending
+            and win_distance <= WIN_TRIGGER_DISTANCE
+        )
+
+        if win_popup_active:
+            popup_rect = pygame.Rect(WIN_POPUP_X, WIN_POPUP_Y, *WIN_POPUP_SIZE)
+            pygame.draw.rect(screen, (0, 0, 0), popup_rect.move(7, 7))
+            pygame.draw.rect(screen, (255, 255, 255), popup_rect)
+            pygame.draw.rect(screen, (20, 20, 20), popup_rect, 5)
+            key_box = pygame.Rect(WIN_POPUP_X + 10, WIN_POPUP_Y + 10, 52, WIN_POPUP_SIZE[1] - 20)
+            pygame.draw.rect(screen, (30, 30, 30), key_box)
+            z_label = win_key_font.render("Z", True, (255, 255, 255))
+            screen.blit(z_label, z_label.get_rect(center=key_box.center))
+            prompt = win_popup_font.render("Selamatkan adikmu", True, (20, 20, 20))
+            screen.blit(prompt, (WIN_POPUP_X + 72, WIN_POPUP_Y + (WIN_POPUP_SIZE[1] - prompt.get_height()) // 2))
+
+        if win_ending:
+            shade = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            shade.fill((0, 0, 0, 190))
+            screen.blit(shade, (0, 0))
+            if win_image is not None:
+                screen.blit(win_image, win_image.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
+            else:
+                win_text = font.render("SELAMAT! ADIK BERHASIL DISELAMATKAN", True, (255, 255, 255))
+                screen.blit(win_text, win_text.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2)))
+
         if level == 1 and boss_phase in ("OPEN", "CLOSED"):
             pulse = (math.sin(pygame.time.get_ticks() / 350.0) + 1.0) / 2.0
-            alpha = int(28 + pulse * 30)  # intensitas warna berdenyut: 28-58
+            alpha = int(28 + pulse * 30)  
             if boss_phase == "OPEN":
                 boss_color_overlay.fill((255, 0, 0, alpha))
             else:
@@ -618,8 +1084,30 @@ def main():
                 eye_text = "MATA TERTUTUP - BOLEH GERAK"
             draw_text(eye_text, 24, 170, (255, 220, 120), small_font)
         if game_over:
-            draw_text("GAME OVER - tekan ESC untuk keluar", SCREEN_W // 2 - 240, SCREEN_H // 2,
-                      (255, 80, 80), font)
+            
+            shade = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+            shade.fill((0, 0, 0, 175))
+            screen.blit(shade, (0, 0))
+
+            if gameover_image is not None:
+                
+                                screen.blit(
+                    gameover_image,
+                    gameover_image.get_rect(
+                        center=(SCREEN_W // 2, SCREEN_H // 2)
+                    )
+                )
+            else:
+                title = font.render("GAME OVER", True, (255, 50, 50))
+                screen.blit(title, title.get_rect(center=(SCREEN_W // 2, SCREEN_H // 2 - 70)))
+
+            
+            blink_on = (pygame.time.get_ticks() // 450) % 2 == 0
+            prompt_color = (255, 35, 35) if blink_on else (150, 0, 0)
+            prompt = pygame.font.SysFont("Arial", 38, bold=True).render(
+                "Menu - ESC     /     Replay - R", True, prompt_color
+            )
+            screen.blit(prompt, prompt.get_rect(center=(SCREEN_W // 2, GAMEOVER_PROMPT_Y)))
         if not camera_available:
             draw_text(
                 "Webcam tidak tersedia - gunakan tombol panah",
@@ -650,7 +1138,7 @@ def main():
                 (SCREEN_W // 2 - label.get_width() // 2, 42)
             )
 
-        # Camera preview placed safely inside the Full HD window.
+        
         if last_camera_preview is not None:
             camera_x = SCREEN_W - CAMERA_W - CAMERA_MARGIN_RIGHT
             camera_y = CAMERA_MARGIN_TOP
