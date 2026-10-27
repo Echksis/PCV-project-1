@@ -1,3 +1,7 @@
+## Gameplay Demo
+
+https://github.com/user-attachments/assets/46b0aee5-53bf-4005-bd61-eb66b3847a65
+
 # Menyelamatkan Adik
 
 **Menyelamatkan Adik** adalah game 2D bergaya pixel art yang menggabungkan platformer, animasi karakter, dan kontrol berbasis deteksi warna menggunakan webcam. Pemain berperan sebagai kakak yang harus melewati berbagai rintangan dan menghadapi monster untuk menyelamatkan adiknya.
